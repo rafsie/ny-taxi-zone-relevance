@@ -1,4 +1,5 @@
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.functions.date_format
 
 object nyTaxiZoneRelevance extends App {
 
@@ -21,6 +22,19 @@ object nyTaxiZoneRelevance extends App {
       $"X".as("longitude"),
       $"Y".as("latitude"))
 
+  val nyTaxiDF = spark.read.format("parquet")
+    .option("header", "true")
+    .option("mode", "FAILFAST")
+    .option("inferSchema", "true")
+    .load("/home/rs/Documents/prac_inz/spark/ny-taxi-zone-relevance/resources/part-r-00000-ec9cbb65-519d-4bdb-a918-72e2364c144c.snappy.parquet")
+    .select($"pickup_taxizone_id".as("src"), $"dropoff_taxizone_id".as("dst"),
+      date_format($"pickup_datetime", "yyyy-MM-dd").as("time"))
+    .where($"src".isNotNull && $"dst".isNotNull)
+    .orderBy("time")
 
-  nyZonesDF.show()
+  val distTime = nyTaxiDF.select("time").distinct()
+
+  nyTaxiDF.show()
+  distTime.show()
+
 }
