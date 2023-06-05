@@ -1,5 +1,5 @@
-import org.apache.spark.sql.{SaveMode, SparkSession}
-import org.apache.spark.sql.functions.date_format
+import org.apache.spark.sql.{SaveMode, SparkSession, functions}
+import org.apache.spark.sql.functions.{date_format, lit}
 import org.graphframes.GraphFrame
 
 object nyTaxiZoneRelevance extends App {
@@ -53,7 +53,35 @@ object nyTaxiZoneRelevance extends App {
 //      .mode(SaveMode.Overwrite)
 //      .option("sep", ",")
 //      .csv("/home/rs/Desktop/pagerank")
-      .show(300, truncate = false)
-  }
+      .show(100, truncate = false)
 
+    results.edges.select($"src", $"dst", $"weight")
+      .where($"weight" >= 0.1)
+      .join(nyZonesDF, $"src" === $"id")
+      .withColumn("src-borough-zone", functions.concat($"borough", lit(" - "), $"zone"))
+      .withColumnRenamed("latitude", "src-latitude")
+      .withColumnRenamed("longitude", "src-longitude")
+      .drop("id", "zone", "borough", "src")
+      .join(nyZonesDF, $"dst" === $"id")
+      .withColumn("dst-borough-zone", functions.concat($"borough", lit(" - "), $"zone"))
+      .withColumnRenamed("latitude", "dst-latitude")
+      .withColumnRenamed("longitude", "dst-longitude")
+      .drop("id", "zone", "borough", "dst")
+      .select($"src-borough-zone",
+        //      $"src-latitude", $"src-longitude",
+        $"dst-borough-zone",
+        //      $"dst-latitude", $"dst-longitude",
+        $"weight")
+      .sort($"weight".desc)
+      .distinct()
+      .toDF()
+      .coalesce(1)
+//      Uncomment to save to .csv file
+//      .write.option("header", value = true)
+//      .mode(SaveMode.Overwrite)
+//      .option("sep", ",")
+//      .csv("/home/rs/Desktop/predges")
+        .show(100, truncate = false)
+
+  }
 }
