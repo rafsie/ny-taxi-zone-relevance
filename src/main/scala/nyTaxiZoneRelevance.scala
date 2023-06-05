@@ -1,5 +1,6 @@
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions.date_format
+import org.graphframes.GraphFrame
 
 object nyTaxiZoneRelevance extends App {
 
@@ -34,7 +35,9 @@ object nyTaxiZoneRelevance extends App {
 
   val distTime = nyTaxiDF.select("time").distinct()
 
-  nyTaxiDF.show()
-  distTime.show()
+//  nyTaxiDF.show()
+//  distTime.show()
+
+  val taxiGF = GraphFrame(nyZonesDF, nyTaxiDF)
 
 }
