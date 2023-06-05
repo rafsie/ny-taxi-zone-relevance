@@ -1,4 +1,4 @@
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.sql.functions.date_format
 import org.graphframes.GraphFrame
 
@@ -33,11 +33,27 @@ object nyTaxiZoneRelevance extends App {
     .where($"src".isNotNull && $"dst".isNotNull)
     .orderBy("time")
 
-  val distTime = nyTaxiDF.select("time").distinct()
-
-//  nyTaxiDF.show()
-//  distTime.show()
-
   val taxiGF = GraphFrame(nyZonesDF, nyTaxiDF)
+
+  spark.time {
+    // Run PageRank until convergence to tolerance "tol".
+    val results = taxiGF.pageRank.resetProbability(0.15).tol(0.01).run()
+
+    val resultsDF = results.vertices
+      .select($"id", $"borough", $"zone", $"pagerank")
+      .sort($"pagerank".desc)
+      .toDF()
+
+    resultsDF.join(nyZonesDF, resultsDF("id") === nyZonesDF("id"))
+      .select(resultsDF("id"), resultsDF("borough"), resultsDF("zone"),
+        nyZonesDF("latitude"), nyZonesDF("longitude"), resultsDF("pagerank"))
+      .coalesce(1)
+//      Uncomment to save to .csv file
+//      .write.option("header", value = true)
+//      .mode(SaveMode.Overwrite)
+//      .option("sep", ",")
+//      .csv("/home/rs/Desktop/pagerank")
+      .show(300, truncate = false)
+  }
 
 }
